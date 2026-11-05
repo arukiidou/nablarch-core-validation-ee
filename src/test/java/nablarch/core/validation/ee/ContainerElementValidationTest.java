@@ -14,6 +14,7 @@ import java.util.Set;
 
 import jakarta.validation.ConstraintViolation;
 
+import jakarta.validation.Valid;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,6 +57,10 @@ public class ContainerElementValidationTest extends BeanValidationTestCase {
         List<@Size(max = 2) List<String>> sizes;
 
         List<@Domain("name") String> domains;
+
+        List<@Valid RecordFrom> records;
+
+        List<@Valid InnerFrom> forms;
     }
 
     /** {@link java.util.Map} のキーと値に制約を指定した Bean */
@@ -66,6 +71,45 @@ public class ContainerElementValidationTest extends BeanValidationTestCase {
     /** {@link java.util.Optional} の値に制約を指定した Bean */
     private static class OptionalBean {
         Optional<@SystemChar(charsetDef = "数字") String> optional;
+    }
+
+    public record RecordFrom(@EnumElement(Color.class) String enumElements){};
+
+    public static class InnerFrom{
+        @EnumElement(Color.class)
+        String enumElements;
+
+        public InnerFrom(String enumElements) {
+            this.enumElements = enumElements;
+        }
+    };
+
+    @Test
+    public void testValidRecord() {
+        ListBean bean = new ListBean();
+        bean.records = Arrays.asList(new RecordFrom("RED"), new RecordFrom("BLUE"));
+        assertThat(validator.validate(bean).isEmpty(), is(true));
+
+        bean.records = Arrays.asList(new RecordFrom("RED"), new RecordFrom("GREEN"));
+        Set<ConstraintViolation<ListBean>> violations = validator.validate(bean);
+        assertThat(violations.size(), is(1));
+        ConstraintViolation<ListBean> v = violations.iterator().next();
+        assertThat(v.getPropertyPath().toString(), is("records[1].enumElements"));
+        assertThat(v.getMessage(), containsString("のいずれの要素とも一致しません。"));
+    }
+
+    @Test
+    public void testValidFrom() {
+        ListBean bean = new ListBean();
+        bean.forms = Arrays.asList(new InnerFrom("RED"), new InnerFrom("BLUE"));
+        assertThat(validator.validate(bean).isEmpty(), is(true));
+
+        bean.forms = Arrays.asList(new InnerFrom("RED"), new InnerFrom("GREEN"));
+        Set<ConstraintViolation<ListBean>> violations = validator.validate(bean);
+        assertThat(violations.size(), is(1));
+        ConstraintViolation<ListBean> v = violations.iterator().next();
+        assertThat(v.getPropertyPath().toString(), is("forms[1].enumElements"));
+        assertThat(v.getMessage(), containsString("のいずれの要素とも一致しません。"));
     }
 
     @Test
